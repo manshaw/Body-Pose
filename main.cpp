@@ -1,5 +1,6 @@
 #include <opencv2/core.hpp>
 #include <opencv2/opencv.hpp>
+#include <opencv2/core/mat.hpp>
 #include <opencv2/imgcodecs.hpp>
 #include <opencv2/video.hpp>
 #include <opencv2/videoio.hpp>
@@ -15,44 +16,105 @@
 #include <fstream>
 #include "text/csv/ostream.hpp"
 #include "text/csv/istream.hpp"
+#include <math.h>
+#include <opencv2/core/core.hpp>
+#include <opencv/cxcore.hpp>
+#include <opencv2/core/core_c.h>
+#include "opencv2/objdetect.hpp"
+#include "opencv2/highgui.hpp"
+#include "opencv2/imgproc.hpp"
+#include "opencv2/videoio.hpp"
+#include "opencv2/opencv.hpp"
+#include <iostream>
+
 using namespace std;
 using namespace cv;
 namespace csv = ::text::csv;
 
 Point2f shoulder_2(Mat fs,string rl, int fw, int dd_mode);
+bool findface(Mat face);
+
 
 
 int main()
 {
+    /*
+    VideoCapture cap(0);
+    //float S = atan(tanSWS);
+    float S = atan(47) ;
+    S = (180/3.1415)*S;
+    float f = (1280 / 2)  / tan(S );
+    cout<<f<<endl;
+    int a, b, determinant = 0;
+    int K[3][3] ;
+    K[0][0] = f;
+    K[0][1] = 0;
+    K[0][2] = 640;
+    K[1][0] = 0;
+    K[1][1] = f;
+    K[1][2] = 480;
+    K[2][0] = 0;
+    K[2][1] = 0;
+    K[2][2] = 1;
+    //This will allow you to input the numbers individually to fill the array.
+    for (a = 0; a < 3; a++){
+         for (int b = 0; b < 3; b++){
+               cout << K[a][b]<<"\t";}
+         cout<<endl;
+    }
+    for(int c =0;c<3;c++){
+    determinant = determinant + (K[0][c] * (K[1][(c+1)%3] * K[2][(c+2)%3] - K[1][(c+2)%3] * K[2][(c+1)%3]));}
+    cout<<determinant<<endl;
+    cout<<"\n\nInverse of matrix is: \n";
+      for(int d = 0; d < 3; d++){
+          for(int e = 0; e < 3; e++)
+              cout<<((K[(e+1)%3][(d+1)%3] * K[(e+2)%3][(d+2)%3]) - (K[(e+1)%3][(d+2)%3] * K[(e+2)%3][(e+1)%3]))/ determinant<<"\t";
+
+          cout<<"\n";
+      }
+    system("pause");
+    */
+
+
     CascadeClassifier face;
     vector<Rect> faces, found;
     string n;
-    std::ofstream fs("empl.csv");
+    std::ofstream fs("output.csv");
     csv::csv_ostream csvs(fs);
     std::ifstream fss("train.csv");
     csv::csv_istream csvs1(fss);
     std::string header1, header2, header3, header4, header5, header6, header7;
     csvs1 >> header1 >> header2 >> header3 >>header4 >> header5 >> header6 >> header7;
-    csvs << header1 << header2 << header3 << header4 << header5 << header6 << header7 << "Face Height" << "Body Height" << "Body Width" << "Shoulder Width" << csv::endl;
-    Mat gray;
-    Rect ROI;
+    csvs << header1 << header2 << header3 << header4 << header5 << header6 << header7 << "FH/BH+FH" << "SWLS" << "SW/BH" << "SW/FW" << "SW" << "FH/BH" <<csv::endl;
+    Mat gray,face_roi;
+    Rect ROI,Face_ROI;
     Point p,p1,p2;
     size_t i;
     Point face_p1,face_p2;
     int face_b;
     face.load("haarcascade_frontalface_alt.xml");
-
-    for(int name  = 1;name<59;name++){
+    int name = 1;
+    bool face_present = false;
+    VideoCapture cap("./img/Image_%04d.jpg");
+    while(1){
 
     clock_t begin = clock();
-    n = "./images/1 ("+to_string(name)+").jpg";
-    Mat img = imread(n,-1);
+    Mat img;
+    cap >> img;
+    if(img.empty())
+        break;
+    name++;
     int ht = img.rows,width = img.cols, face_height,face_width,face_bottom,check,check1,start,l,r=0,b,x,lx;
     cvtColor(img,gray,CV_BGR2GRAY);
     face.detectMultiScale( gray, faces, 1.1,
                                 2, 0|CASCADE_SCALE_IMAGE, Size(30, 30) );
     for ( i = 0; i < faces.size(); i++ )
     {
+        Face_ROI = Rect(faces[i].x, faces[i].y, faces[i].width, faces[i].height);
+        face_roi = img(Face_ROI);
+        face_present = findface(face_roi);
+        if(face_present==false)
+            break;
         //face detection
         face_b = faces[i].y + faces[i].height;
         p2.y = faces[i].y + faces[i].height ;
@@ -74,7 +136,7 @@ int main()
       //  circle(img,face_p2,5,Scalar(0,0,255),8);
         line(img,face_p1,face_p2,Scalar(0,255,0),4);
     }
-
+    if(!face_present == false){
     Mat img_clone = img.clone();
     //namedWindow("face",WINDOW_NORMAL);
     //moveWindow("face",300,200);
@@ -175,7 +237,8 @@ int main()
     //waitKey(0);
     Point b1_c=b1,b2_c=b2;
     int body_width = b2.x - b1.x;
-    int body_height = b2_c.y - b1.y;
+    int body_height = (b2_c.y - b1.y);
+    int full_body_height = body_height + face_height;
     b1_c.x +=body_width/2;
     //circle(img_clone,b1_c,5,Scalar(255,0,0),8);
     //imshow("face",img_clone);
@@ -198,6 +261,10 @@ int main()
     //waitKey(0);
     line(img_clone,shoulder_left,shoulder_right,Scalar(0,0,255),4,8);
     int shoulder_width = shoulder_right.x - shoulder_left.x;
+    float tanSWS,SWS;
+    tanSWS = (shoulder_right.y-shoulder_left.y)/(shoulder_right.x-shoulder_left.x);
+    SWS = atan(tanSWS);
+    SWS = (180/3.14)*SWS;
     cout<<endl<<endl;
     cout<<"FACE HEIGHT = "<<face_height<<endl;
     cout<<"BODY HEIGHT = "<<body_height<<endl;
@@ -207,17 +274,14 @@ int main()
     cout<<"Total Time = "<< double(end - begin) / CLOCKS_PER_SEC<<endl;
     cout<<endl<<endl;
     csvs1 >> header1 >> header2 >> header3 >>header4 >> header5 >> header6 >> header7;
-    csvs << header1 << header2 << header3 << header4 << header5 << header6 << header7 << face_height << body_height << body_width << shoulder_width << csv::endl;
+    csvs << header1 << header2 << header3 << header4 << header5 << header6 << header7 << (float)face_height/full_body_height << SWS << (float)shoulder_width/body_height << (float)shoulder_width/width << "NOT YET" <<(float)face_height/body_height << csv::endl;
     namedWindow("face",WINDOW_NORMAL);
     moveWindow("face",500,100);
     resizeWindow("face",Size(640,480));
     imshow("face",img_clone);
     waitKey(1);
-
-
     }
-
-
+    }
     return 0;
 }
 
@@ -226,7 +290,7 @@ int main()
 Point2f shoulder_2(Mat fs,string rl, int fw, int dd_mode)
 {
 
-    Mat cdst = Mat::zeros (fs.size (), CV_8UC1);
+    Mat cdst = Mat::zeros(fs.size(), CV_8UC1);
     Point2f shoulder;
     Point sc;
     if(rl == "right")
@@ -307,4 +371,45 @@ Point2f shoulder_2(Mat fs,string rl, int fw, int dd_mode)
       }
     fs.release ();
     return shoulder;
+}
+
+
+
+
+
+bool findface(Mat face)
+{
+  bool found = false ;
+  int scale =2;
+  Mat fa = face.clone();
+  Mat frame_gray2;
+  resize (face, face, Size (face.cols * scale, face.rows * scale), 0, 0, 3);
+  Mat fc = face.clone();
+  Mat f_ycrcb, skin;
+  cvtColor (face, f_ycrcb, COLOR_BGR2YCrCb);
+  //inRange(f_ycrcb,Scalar(60, 135, 90), Scalar (255, 170, 135),skin);
+  inRange(f_ycrcb,Scalar(60, 135, 90), Scalar (255, 255, 255),skin);
+  Mat f_s;
+  int num=0;
+  face.copyTo(f_s,skin);
+  for(int i =0;i<skin.rows;i++){
+      for(int j =0;j<skin.cols;j++){
+          int val = (int)skin.at<uchar>(i,j);
+          if(val > 15){
+              num++;
+          }
+      }
+
+  }
+  float total = skin.rows*skin.cols;
+  float per = (num/total)*100;
+  cout << "Face Percentage = " << per <<endl;
+  namedWindow("SKIN",WINDOW_AUTOSIZE);
+  moveWindow("SKIN",100,100);
+  if(per > 65){
+      found = true;
+      imshow("SKIN",face);
+      waitKey(1);
+  }
+ return found;
 }
