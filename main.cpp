@@ -85,7 +85,7 @@ int main()
     csv::csv_istream csvs1(fss);
     std::string header1, header2, header3, header4, header5, header6, header7;
     csvs1 >> header1 >> header2 >> header3 >>header4 >> header5 >> header6 >> header7;
-    csvs << header1 << header2 << header3 << header4 << header5 << header6 << header7 << "FH/BH+FH" << "SWLS" << "SW/BH" << "SW/FW" << "SW" << "FH/BH" <<csv::endl;
+    csvs << header1 << header2 << header3 << header4 << header5 << header6 << header7 << "FH/BH+FH" << "SWLS" << "SW/BH" << "SW/IW" << "SW" << "FH/BH" << "FH/SW" <<csv::endl;
     Mat gray,face_roi;
     Rect ROI,Face_ROI;
     Point p,p1,p2;
@@ -274,14 +274,18 @@ int main()
     cout<<"Total Time = "<< double(end - begin) / CLOCKS_PER_SEC<<endl;
     cout<<endl<<endl;
     csvs1 >> header1 >> header2 >> header3 >>header4 >> header5 >> header6 >> header7;
-    csvs << header1 << header2 << header3 << header4 << header5 << header6 << header7 << (float)face_height/full_body_height << SWS << (float)shoulder_width/body_height << (float)shoulder_width/width << "NOT YET" <<(float)face_height/body_height << csv::endl;
+    csvs << header1 << header2 << header3 << header4 << header5 << header6 << header7 << (float)face_height/full_body_height << SWS << (float)shoulder_width/body_height << (float)shoulder_width/width << "NOT YET" <<(float)face_height/body_height << (float)face_height/shoulder_width <<csv::endl;
     namedWindow("face",WINDOW_NORMAL);
     moveWindow("face",500,100);
     resizeWindow("face",Size(640,480));
     imshow("face",img_clone);
     waitKey(1);
     }
+    else{
+        csvs1 >> header1 >> header2 >> header3 >>header4 >> header5 >> header6 >> header7;
     }
+    }
+
     return 0;
 }
 
@@ -406,7 +410,7 @@ bool findface(Mat face)
   cout << "Face Percentage = " << per <<endl;
   namedWindow("SKIN",WINDOW_AUTOSIZE);
   moveWindow("SKIN",100,100);
-  if(per > 65){
+  if(per > 69){
       found = true;
       imshow("SKIN",face);
       waitKey(1);
